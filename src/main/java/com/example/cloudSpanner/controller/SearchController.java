@@ -2,11 +2,15 @@ package com.example.cloudSpanner.controller;
 
 
 import com.example.cloudSpanner.advSearch.EmpSpecificationBuilder;
+import com.example.cloudSpanner.advSearch.SearchOperation;
 import com.example.cloudSpanner.domain.Employee;
 import com.example.cloudSpanner.advSearch.EmployeeSearchDto;
 import com.example.cloudSpanner.advSearch.SearchCriteria;
 import com.example.cloudSpanner.service.EmployeeService;
 import com.example.cloudSpanner.utils.APIResponse;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spring.data.spanner.core.SpannerQueryOptions;
+import com.google.cloud.spring.data.spanner.core.SpannerTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +29,9 @@ public class SearchController {
 
     @Autowired
     private EmployeeService empService;
+
+    @Autowired
+    private SpannerTemplate spannerTemplate;
 
     @GetMapping("/employees")
     public ResponseEntity<APIResponse> getAllEmployees(){
@@ -52,11 +59,15 @@ public class SearchController {
 
         Pageable page = PageRequest.of(pageNum, pageSize, Sort.by("empfirstNm")
                 .ascending().and(Sort.by("emplastNm"))
-                .ascending().and(Sort.by("department")).ascending());
+                .ascending().and(Sort.by("deptId")).ascending());
 
-        Page<Employee> employeePage = empService.findBySearchCriteria(builder.build(), page);
+        String statement = builder.buildQuery();
 
-        apiResponse.setData(employeePage.toList());
+        List<Employee> employees = spannerTemplate.query(Employee.class, Statement.of(statement), new SpannerQueryOptions());
+
+//        Page<Employee> employeePage = empService.findBySearchCriteria(builder.build(), page);
+
+        apiResponse.setData(employees);
         apiResponse.setResponseCode(HttpStatus.OK);
         apiResponse.setMessage("Successfully retrieved employee record");
 
